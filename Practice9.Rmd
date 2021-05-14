@@ -1,0 +1,91 @@
+---
+title: "Practice9"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(janitor)
+library(lubridate)
+library(broom)
+theme_set(theme_light)
+library(widyr)
+```
+
+```{r}
+rawdf <- read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2018/2018-12-11/nyc_restaurants.csv")
+```
+
+```{r}
+df <- rawdf %>%
+  janitor::clean_names() %>%
+  mutate(inspection_date = mdy(inspection_date)) %>%
+  separate(inspection_type, c("inspection_program", "inspection_type"), sep = "/")
+```
+
+```{r}
+df %>%
+  count(dba,camis, sort = TRUE)
+
+df %>%
+  count(year = year(inspection_date),
+        month = month(inspection_date)) %>%
+  arrange(year,month) 
+
+df %>%
+  count(grade, sort = TRUE)
+
+df %>%
+  count(violation_code, violation_description, sort = TRUE)
+
+df %>%
+  count(camis, dba, inspection_date, sort = TRUE)
+
+inspections <- df %>%
+  group_by(camis,
+           dba,
+           boro,
+           zipcode,
+           cuisine_description,
+           inspection_date,
+           action,
+           score,
+           grade,
+           inspection_type,
+           inspection_program) %>%
+    summarize(critical_violations = sum(critical_flag == "Critical", na.rm=TRUE),
+            non_critical_violations = sum(critical_flag == "Not Critical", na.rm=TRUE)) %>%
+            ungroup()
+```
+
+
+```{r}
+recent_inspections <- inspections %>%
+  filter(inspection_program == "Cycle Inspection ",
+         inspection_type == " Initial Inspection") %>%
+  arrange(desc(inspection_date)) %>%
+  distinct(camis, .keep_all = TRUE)
+```
+
+```{r}
+recent_inspections %>%
+  group_by(cuisine_description) %>%
+  summarize(avg_score = mean(score),
+            median_score = median(score),
+            restaurants = n()) %>%
+  arrange(desc(restaurants))
+
+recent_inspections %>%
+  add_count(cuisine_description) %>%
+  filter(n > 100) %>%
+  nest(-cuisine_description) %>%
+  mutate(model = map(data, ~t.test(.$score))) 
+
+```
+
+
+

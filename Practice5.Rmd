@@ -1,0 +1,131 @@
+---
+title: "Practice5"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+thanksgiving <- read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2018/2018-11-20/thanksgiving_meals.csv") %>%
+  mutate(family_income = fct_reorder(family_income, parse_number(family_income)))
+```
+```{r}
+thanksgiving %>%
+  count(age) %>%
+  ggplot(aes(age,n)) +
+  geom_col()
+```
+
+```{r}
+thanksgiving %>%
+  count(celebrate)
+
+thanksgiving %>%
+  count(prayer)
+```
+
+
+```{r}
+thanksgiving %>%
+  count(cranberry)
+```
+
+```{r}
+thanksgiving %>%
+  filter(cranberry %in% c("Canned", "Homemade")) %>%
+  group_by(family_income) %>%
+  summarize(homemade = mean(cranberry == "Homemade"),
+    total = n(),
+    low = qbeta(0.025, homemade + .5, total - homemade + .5),
+    high = qbeta(0.975, homemade + .5, total - homemade + .5)) %>%
+  ggplot(aes(family_income, homemade / total, group = 1)) +
+  geom_line() +
+  geom_ribbon(aes(ymin=low, ymax=high), alpha =.2) +
+  scale_y_continuous(labels = scales::percent_format()) +
+  theme(axis.text.x = element_text(angle = 90, hjust=1)) +
+    labs (x="Family Income",
+          y= "% serving homemade")
+```
+
+```{r}
+thanksgiving %>%
+  group_by(family_income) %>%
+  summarize(celebrate = sum(celebrate == "Yes"),
+    total = n(),
+    low = qbeta(0.025, celebrate + .5, total - celebrate + .5),
+    high = qbeta(0.975, celebrate + .5, total - celebrate + .5)) %>%
+  ggplot(aes(family_income, celebrate / total, group = 1)) +
+  geom_line() +
+  geom_ribbon(aes(ymin=low, ymax=high), alpha =.2) +
+  scale_y_continuous(labels = scales::percent_format()) +
+  theme(axis.text.x = element_text(angle = 90, hjust=1)) +
+    labs (x="Family Income",
+          y= "% serving homemade")
+```
+
+```{r}
+food_gathered <- thanksgiving %>%
+  select(id, starts_with("pie"), starts_with("dessert"), starts_with("side")) %>%
+  select(-side15, -pie13, -dessert12) %>%
+  gather(type, value, -id) %>%
+  filter(!is.na(value),
+         !value %in% c("None", "Other (please specify)")) %>%
+  mutate(type = str_remove(type, "\\d+")) 
+```
+
+```{r}
+food_gathered %>%
+  count(type, value, sort = TRUE)
+```
+
+```{r}
+food_gathered %>%
+  count(type, value, sort = TRUE) %>%
+  mutate(value = fct_reorder(value,n)) %>%
+  ggplot(aes(value, n, fill=type)) +
+  geom_col() +
+  coord_flip() 
+```
+
+```{r}
+n_respondents <- n_distinct(food_gathered$id)
+```
+
+```{r}
+food_gathered %>%
+  count(type, value, sort = TRUE) %>%
+  mutate(value = fct_reorder(value,n)) %>%
+  ggplot(aes(value, n/n_respondents, fill=type)) +
+  geom_col() +
+  coord_flip() +
+  scale_y_continuous(labels = scales::percent_format()) +
+  facet_wrap(~type, scales = "free_y", ncol=1) +
+  labs(x="",
+       y="%")
+```
+
+```{r}
+food_by_region<- food_gathered %>%
+  inner_join(thanksgiving, by="id") %>%
+  group_by(us_region) %>%
+  mutate(respondents = n_distinct(id)) %>%
+  count(us_region, respondents, value)
+```
+
+
+```{r}
+food_by_region %>%
+  count(us_region)
+```
+
+```{r}
+food_by_region %>%
+  count(value == "Cornbread") %>%
+  arrange(desc(n))
+```

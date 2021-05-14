@@ -1,0 +1,67 @@
+---
+title: "Practice4"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+us_wind <- read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2018/2018-11-06/us_wind.csv")
+```
+
+```{r}
+us_wind %>%
+  count(t_state, sort=TRUE)
+```
+
+```{r}
+us_wind %>%
+  filter(xlong <100) %>%
+  ggplot(aes(xlong,ylat)) +
+  geom_point()
+```
+```{r}
+us_windprocessed <- us_wind %>%
+  filter(!t_state %in% c("AK", "HI", "GU", "PR"))
+
+us_windprocessed %>%
+  group_by(p_name, t_state) %>%
+  summarize(turbines = n(),
+            lon = mean(xlong),
+            lat = mean(ylat),
+            lon_sd = sd(xlong),
+            lat_sd = sd(ylat))
+
+us_wind %>%
+  count(p_name, sort = TRUE)
+  
+```
+```{r}
+us_windprocessed %>%
+  distinct(p_name, p_year) %>%
+  count(p_name, sort = TRUE)
+```
+```{r}
+us_windprocessed %>%
+  mutate(p_year = ifelse(p_year < -8000, NA, p_year)) %>%
+  ggplot(aes(p_year)) +
+  geom_histogram()
+```
+```{r}
+us_windprocessed %>%
+  distinct(p_name, p_cap) %>% 
+  count(p_name, sort=TRUE)
+```
+
+```{r}
+us_wind %>%
+  ggplot(aes(p_year,total_capacity)) +
+  geom_point()
+```
+

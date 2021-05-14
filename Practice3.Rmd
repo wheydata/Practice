@@ -1,0 +1,85 @@
+---
+title: "Practice3"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(lubridate)
+library(countrycode)
+library(scales)
+theme_set(theme_light())
+```
+
+```{r}
+r_downloads_year_raw <- read.csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2018/2018-10-30/r_downloads_year.csv") 
+
+r_downloads_year <- r_downloads_year_raw %>%
+  select(-X)
+```
+
+
+
+```{r}
+r_downloads_year$date <- as.Date(r_downloads_year$date)
+```
+
+```{r}
+r_downloads_year %>%
+  count(date) %>%
+  ggplot(aes(date, n)) +
+  geom_line() +
+  expand_limits(y=0) +
+  labs(y ="# of R Downloads per Day")
+
+r_downloads_year %>%
+  count(weekday = wday(date,label=TRUE)) %>%
+  ggplot(aes(weekday, n)) +
+  geom_line(group=1) +
+  expand_limits(y=0) +
+  labs(y = "Average downloads per weekday")
+```
+
+```{r}
+r_downloads_year %>%
+  count(country = countrycode(country, "iso2c", "country.name"), sort = TRUE) %>%
+  mutate(percent = n /sum(n)) %>%
+  filter(!is.na(country)) %>%
+  head(16) %>%
+  mutate(country = fct_reorder(country, percent)) %>%
+  ggplot(aes(country, percent)) +
+  geom_col() +
+  coord_flip() +
+  scale_y_continuous(labels = percent_format())
+```
+```{r}
+r_downloads_year %>%
+  count(version, sort=TRUE)
+```
+
+```{r}
+r_downloads_year %>%
+  mutate(version = fct_lump(version, 8)) %>%
+  count(date, version) %>%
+  ggplot(aes(date, n, color =version)) +
+  geom_line()
+```
+
+```{r}
+r_downloads_year %>%
+  count(ip_id, sort=TRUE)
+
+r_downloads_year %>%
+  filter(ip_id == 1)
+```
+
+```{r}
+
+```
+
+
+

@@ -1,0 +1,112 @@
+---
+title: "Practice11"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(lubridate)
+library(fuzzyjoin)
+library(survival)
+```
+
+```{r}
+cetaceans_raw <- read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2018/2018-12-18/allCetaceanData.csv")
+
+cetaceans<- cetaceans_raw %>%
+  select(-X1) %>%
+  mutate(birthYear = as.integer(birthYear),
+         age = if_else(status == "Died", year(statusDate) - birthYear, NA_real_))
+  
+```
+
+```{r}
+cetaceans %>%
+  count(status, sort = TRUE)
+
+cetaceans %>%
+  filter(status == "Died") %>%
+  select(birthYear, statusDate) %>%
+  filter(!is.na(birthYear), !is.na(statusDate)) %>%
+  mutate(age = year(statusDate) - birthYear) %>%
+  ggplot(aes(age)) +
+  geom_histogram()
+```
+
+```{r}
+cetaceans %>%
+  count(species = fct_lump(species, 5), sort = TRUE) %>%
+  mutate(species = fct_reorder(species,n)) %>%
+  ggplot(aes(species, n)) +
+  geom_col() +
+  coord_flip()
+```
+
+```{r}
+cetaceans %>%
+  mutate(species = fct_lump(species,5), sort=TRUE) %>%
+  filter(!is.na(birthYear), !is.na(statusDate)) %>%
+  mutate(age = year(statusDate) - birthYear) %>%
+  ggplot(aes(species, age)) +
+  geom_boxplot() +
+  coord_flip()
+```
+
+```{r}
+cetaceans %>%
+  count(acquisition, originLocation, sort = TRUE) %>%
+  filter(originLocation != "Unknown")
+```
+
+```{r}
+cetaceans %>%
+  filter(originDate >= "1960-01-01") %>%
+  count(acquisition, decade = 5 * year(originDate) %/% 5) %>%
+  complete(acquisition, decade, fill = list(n=0)) %>%
+  mutate(acquisition = fct_reorder(acquisition, n, sum)) %>%
+  group_by(decade) %>%
+  mutate(percent = n / sum(n)) %>%
+  ggplot(aes(decade, percent, fill = acquisition)) +
+  geom_area() +
+  scale_y_continuous(labels = scales::percent_format()) +
+  geom_vline(lty = 2, xintercept = 1979) +
+  theme_minimal() +
+  labs(x = "year",
+       y = "% of dolphins recorded")
+  
+```
+
+```{r}
+
+regexes <- tribble(
+  ~ regex, ~ category,
+  "Gulf of Mexico", "Mexico",
+  "Florida|FL", "Florida",
+  "Texas|TX", "Texas",
+  "SeaWorld", "SeaWorld",
+  "Pacific", "Pacific Ocean",
+  "Atlantic", "Atlantic Ocean"
+)
+cetaceans %>%
+  count(acquisition, originLocation, sort = TRUE) %>%
+  regex_left_join(regexes, c(originLocation = "regex"))
+```
+
+```{r}
+dolphin_survival <- cetaceans %>%
+  filter(status %in% c("Alive", "Died")) %>%
+  mutate(deathYear = ifelse(status == "ALive", 2017, year(statusDate)),
+         status = ifelse(status =="Alive", 0,1),
+         age = deathYear - birthYear,
+         deathYear = deathYear + .1) %>%
+  filter(!is.na(deathYear)) %>%
+  select(birthYear, deathYear, status, sex, acquisition, species) %>%
+  filter(deathYear > birthYear)
+
+survfit(Surv(birthYear, deathYear, status, type = "interval") ~ 1, dolphin_survival)
+```
+

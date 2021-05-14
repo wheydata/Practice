@@ -1,0 +1,70 @@
+---
+title: "Practice19"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+theme_set(theme_light())
+```
+
+```{r}
+board_games <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-03-12/board_games.csv")
+```
+```{r}
+board_games %>%
+  count(publisher, sort=TRUE) 
+
+board_games %>%
+  count(year_published) %>%
+  ggplot(aes(year_published, n)) +
+  geom_line()
+
+board_games %>%
+  ggplot(aes(average_rating)) +
+  geom_histogram()
+
+```
+
+```{r}
+board_games %>%
+  ggplot(aes(max_playtime)) +
+  geom_histogram() +
+  scale_x_log10(breaks = 2 ^ seq(-2,4))
+```
+
+```{r}
+categorical_variables <- board_games %>%
+  count(game_id, name, family, category, artist, designer) %>%
+  gather(type, value, -game_id, -name) %>%
+  filter(!is.na(value)) %>%
+  separate_rows(value, sep = ",") %>%
+  arrange(game_id)
+
+categorical_variables %>%
+  count(type, value, sort=TRUE)
+
+```
+
+```{r}
+holdout_set <- board_games %>%
+  filter(game_id %% 5 == 0)
+
+board_game_data <- board_games %>%
+  filter(game_id %% 5 !=0)
+```
+
+```{r}
+board_game_data %>%
+  group_by(decade = 10 * (year_published %>% 10)) %>%
+  summarize(average_rating = mean(average_rating)) %>%
+  ggplot(aes(decade, average_rating)) +
+  geom_line()
+```
+
+
+```{r}
+lm(average_rating ~ log2(max_players + 1) + log2(max_playtime +1), board_games) %>%
+  summary()
+```
+

@@ -1,0 +1,96 @@
+---
+title: "Practice17"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(scales)
+```
+
+```{r}
+full_trains <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-02-26/full_trains.csv") %>%
+    mutate(pct_late_at_departure = num_late_at_departure / total_num_trips,
+          departure_station = str_to_title(departure_station),
+          arrival_station = str_to_title(arrival_station), 
+          month = as.Date(sprintf("%d-%02d-01", year, month)))                    
+small_trains <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-02-26/small_trains.csv") 
+```
+
+```{r}
+full_trains %>%
+  count(year, month)
+```
+
+```{r}
+nov_2018 <- full_trains %>%
+  filter(year == 2018, month ==11) %>%
+  mutate(pct_late_at_departure = num_late_at_departure / total_num_trips,
+         departure_station = str_to_title((departure_station))) 
+  
+nov_2018 %>%
+  ggplot(aes(pct_late_at_departure)) +
+  geom_histogram(binwidth = .05) +
+  scale_x_continuous(labels = percent_format())
+
+nov_2018 %>%
+  mutate(departure_station = fct_lump(departure_station,3)) %>%
+  ggplot(aes(departure_station, pct_late_at_departure)) +
+  geom_boxplot() +
+  scale_y_continuous(labels = percent_format())
+
+
+nov_2018 %>%
+#  mutate(arrival_station = fct_infreq(fct_lump(arrival_station, prop = .01))) %>%
+#  mutate(departure_station = fct_infreq(fct_lump(departure_station, prop = .01))) %>%
+  mutate(arrival_station = fct_reorder(fct_lump(arrival_station, prop = .01), pct_late_at_departure)) %>%
+  mutate(departure_station = fct_reorder(fct_lump(departure_station, prop = .01), pct_late_at_departure)) %>%
+  group_by(arrival_station, departure_station) %>%
+  summarize(pct_late_at_departure = sum(num_late_at_departure) / sum(total_num_trips)) %>%
+  ggplot(aes(arrival_station, departure_station, fill = pct_late_at_departure)) +
+  geom_tile() +
+    theme(axis.text.x = element_text(angle =90, hjust=1)) +
+  scale_fill_gradient2(low = "blue", high = "red", midpoint = .25, labels = percent_format()) +
+  labs(x = "Arrival",
+       y = "Departure",
+       color = "Late")
+```
+
+```{r}
+full_trains %>%
+  filter(departure_station == "Lyon Part Dieu") %>%
+  ggplot(aes(month, pct_late_at_departure, color = arrival_station)) +
+  geom_line() +
+  scale_y_continuous(labels = percent_format())+
+  expand_limits(y=0)
+
+full_trains %>%
+  filter(departure_station == "Lille") %>%
+  ggplot(aes(month, pct_late_at_departure, color = arrival_station)) +
+  geom_line() +
+  scale_y_continuous(labels = percent_format())+
+  expand_limits(y=0)
+
+
+
+full_trains %>%
+  filter(departure_station == "Nantes") %>%
+  ggplot(aes(month, pct_late_at_departure, color = arrival_station)) +
+  geom_line() +
+  scale_y_continuous(labels = percent_format())+
+  expand_limits(y=0)
+```
+
+```{r}
+full_trains %>%
+  group_by(departure_station, fct_lump(departure_station, prop = .03), month) %>%
+  summarize_at(vars(contains("num")), sum) %>%
+  ungroup() %>%
+  mutate(pct_late_at_departure = num_late_at_departure / total_num_trips) %>%
+  mutate(departure_station = fct_reorder(departure_station, -pct_late_at_departure, last)) %>%
+  ggplot(aes(month, pct_late_at_departure, color = departure_station)) +
+  geom_line() +
+  scale_y_continuous(labels = percent_format())
+```
+
+

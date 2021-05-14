@@ -1,0 +1,80 @@
+---
+title: "Practice8"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+Say one of the players is better than his opponent to the degree that he wins 20 percent of all games, loses 15 percent of games and that 65 percent of games are drawn. Wins at this match are worth 1 point, draws a half-point for each player, and losses 0 points. In a 12-game match, the first player to 6.5 points wins.
+
+What are the chances the better player wins a 12-game match? How many games would a match have to be in order to give the better player a 75 chance of winning the match outright? A 90 percent chance? A 99 percent chance?
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+scores <- crossing(trial = 1:1e6,
+         game = 1:12) %>%
+  mutate(result = sample(c(1,0,.5),
+                         n(),
+                         replace=TRUE,
+                         prob = c(.2,.15,.65))) %>%
+  group_by(trial) %>%
+  summarize(score = sum(result)) 
+
+scores %>%
+  ggplot(aes(score)) +
+  geom_histogram(binwidth = .25) +
+  geom_vline(color = "red", xintercept = 6.5)
+
+scores %>%
+  summarize(mean(score >=6.5))
+```
+
+```{r}
+N <- 4
+
+
+simulate_round <- function(row){
+  m <- matrix(0L, nrow = N, ncol = N)
+  
+while(any(colSums(m)==0)) {
+  ball <- sample.int(4L,1)
+  cup <- sample.int(4L,1)
+
+  m[ball, cup] <- m[ball, cup] + 1
+  
+  }
+
+  data_frame(win = all(diag(m) > 0),
+             balls_thrown=sum(m))
+}
+
+game_summary <- rounds %>%
+  mutate(game_number = cumsum(lag(win, default=0))) %>%
+  count(game_number) 
+
+game_summary %>%
+  ggplot(aes(n)) +
+  geom_histogram(binwidth=10, boundary = 0)
+
+rounds %>%
+  mutate(game_number = cumsum(lag(win, default=0))) %>%
+  count(game_number) %>%
+  summarize(mean(n))
+
+game_summary <- rounds %>%
+  mutate(game_number = cumsum(lag(win, default=0))) %>%
+  group_by(game_number) %>%
+  summarize(rounds = n(),
+            balls_thrown = sum(balls_thrown))
+
+game_summary %>%
+  ggplot(aes(n)) +
+  geom_histogram(binwidth = 10, boundary = 0)
+```
+

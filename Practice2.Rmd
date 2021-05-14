@@ -1,0 +1,132 @@
+---
+title: "Praactice2"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(lubridate)
+library(scales)
+theme_set(theme_light())
+
+```
+
+```{r}
+movie_profit_raw <- read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2018/2018-10-23/movie_profit.csv")
+```
+
+```{r}
+movie_profit <- movie_profit_raw %>%
+  select(-X1) %>%
+  mutate(release_date = as.Date(parse_date_time(release_date, "%m!/%d?%Y")),
+         distributor = fct_lump(distributor, n=6)) %>%
+  filter(release_date < "2018-01-01") %>%
+  filter(worldwide_gross > 0)
+```
+
+```{r}
+movie_profit %>%
+  ggplot(aes(distributor, production_budget)) +
+  geom_boxplot() +
+  scale_y_log10(labels = dollar_format()) + 
+  coord_flip()
+```
+
+```{r}
+movie_profit %>%
+  count(movie)
+```
+
+
+### What genres make the most money?
+
+```{r}
+movie_profit %>%
+  count(genre, sort=TRUE)
+```
+
+
+```{r}
+movie_profit %>%
+  mutate(genre = fct_reorder(genre, production_budget)) %>%
+  ggplot(aes(genre, worldwide_gross)) +
+  geom_boxplot() +
+  scale_y_log10(labels = dollar_format()) + 
+  coord_flip() +
+  facet_wrap (~ distributor)
+```
+
+
+### What are typical budgets over time?
+
+```{r}
+movie_profit %>%
+  mutate(decade = 10 * floor(year(release_date) /10 )) %>%
+  group_by(decade) %>%
+  summarize_at(vars(production_budget:worldwide_gross), median, na.rm = TRUE)
+```
+```{r}
+movie_profit %>% arrange(desc(worldwide_gross)) %>% view()
+```
+
+```{r}
+movie_profit %>%
+  mutate(decade = 10 * floor(year(release_date) /10 )) %>%
+  group_by(decade) %>%
+  summarize_at(vars(production_budget:worldwide_gross), median, na.rm = TRUE) %>%
+  gather(metric,value, -decade) %>%
+  ggplot(aes(decade, value, color=metric)) +
+  geom_line() +
+  scale_y_continuous(labels=dollar_format())
+```
+# Which genres have the biggest payoff?
+
+```{r}
+movie_profit %>%
+  mutate(profit_ratio = worldwide_gross / production_budget) %>%
+  arrange(desc(profit_ratio)) %>%
+  select("release_date", "movie", "profit_ratio")
+```
+
+```{r}
+movie_profit %>%
+  mutate(profit_ratio = worldwide_gross / production_budget) %>%
+  ggplot(aes(genre, profit_ratio)) +
+  geom_boxplot() +
+  scale_y_log10() +
+  coord_flip()
+```
+
+```{r}
+movie_profit %>%
+  mutate(profit_ratio = worldwide_gross / production_budget) %>%
+  group_by(genre) %>%
+  summarize(median_profit_ratio = median(profit_ratio)) %>%
+  arrange(desc(median_profit_ratio)) %>%
+  mutate(genre = fct_reorder(genre, median_profit_ratio)) %>%
+  ggplot(aes(genre, median_profit_ratio)) +
+  geom_col() +
+  scale_y_continuous(labels = function(x) paste0(x,"X")) +
+  coord_flip()
+```
+
+
+
+```{r}
+movie_profit %>%
+  mutate(profit_total = worldwide_gross - production_budget) %>%
+  group_by(genre) %>%
+  summarize(median_profit_ratio = median(profit_total)) %>%
+  arrange(desc(median_profit_ratio)) %>%
+  mutate(genre = fct_reorder(genre, median_profit_ratio)) %>%
+  ggplot(aes(genre, median_profit_ratio)) +
+  geom_col() +
+  scale_y_continuous(labels = function(x) paste0(x,"X")) +
+  coord_flip()
+```
+
+

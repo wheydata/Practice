@@ -1,0 +1,42 @@
+---
+title: "Practice20"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(lubridate)
+```
+
+
+```{r}
+seattle_pets <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-03-26/seattle_pets.csv")
+```
+
+```{r}
+seattle_pets %>%
+  mutate(license_issue_date = mdy(license_issue_date)) %>%
+  ggplot(aes(license_issue_date)) +
+  geom_histogram()
+
+seattle_pets %>%
+  count(species, primary_breed, sort = TRUE) %>%
+  filter(species %in% c("Cat", "Dog")) %>%
+  mutate(percent = n/sum(n)) %>%
+  group_by(species) %>%
+  top_n(10, percent) %>%
+  ungroup() %>%
+  head(10) %>%
+  mutate(primary_breed = fct_reorder(primary_breed, percent)) %>%
+  ggplot(aes(primary_breed, percent, fill = species)) +
+  geom_col(show.legend = FALSE) +
+  scale_y_continuous(labels = scales::percent_format()) +
+  facet_wrap(~ species, scales = "free", ncol=1) +
+  coord_flip()
+
+```
+

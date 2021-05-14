@@ -1,0 +1,181 @@
+---
+title: "Practice12"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+tv_ratings <- read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-01-08/IMDb_Economist_tv_ratings.csv")
+```
+
+```{r}
+tv_ratings %>%
+  filter(title == "The Wire")
+```
+
+```{r}
+tv_ratings %>%
+  count(seasonNumber) %>%
+  ggplot(aes(seasonNumber, n)) +
+  geom_line()
+
+tv_ratings %>%
+  filter(seasonNumber <= 7) %>%
+  group_by(seasonNumber) %>%
+  summarize(av_rating = mean(av_rating)) %>%
+  ggplot(aes(seasonNumber, av_rating)) +
+  geom_line()
+```
+
+
+```{r}
+tv_ratings_full_show <- tv_ratings %>%
+  group_by(title) %>%
+  filter(1 %in% seasonNumber,
+         all(seasonNumber == dplyr::row_number())) 
+```
+
+```{r}
+tv_ratings_full_show %>%
+  filter(n() >= 5) %>%
+  filter(seasonNumber <= 5) %>%
+  group_by(seasonNumber) %>%
+  ggplot(aes(factor(seasonNumber), av_rating)) +
+  geom_boxplot()
+```
+
+```{r}
+by_show <- tv_ratings %>%
+  group_by(title) %>%
+  summarize(avg_rating = mean(av_rating),
+            sd = sd(av_rating),
+            season = n()) %>%
+  arrange(desc(avg_rating))
+
+most_variable_shows <- by_show %>%
+  filter(season >=5) %>%
+  top_n(6,sd)
+```
+
+```{r}
+tv_ratings %>%
+  inner_join(most_variable_shows, by = "title") %>%
+  ggplot(aes(seasonNumber, av_rating, color = title)) +
+  geom_line() +
+  geom_point() +
+  scale_x_continuous(breaks = function(lim) seq(floor(lim[1]), ceiling(lim[2]), 2)) +
+  facet_wrap(~ title) +
+  theme(legend.position = "none")
+```
+
+```{r}
+library(lubridate)
+
+by_year <- tv_ratings %>%
+  group_by (year = 2*(year(date) %/% 2)) %>%
+  summarize(mean_rating = mean(av_rating),
+            median_rating = median(av_rating),
+            sd = sd(av_rating),
+            mean_season_1 = mean(av_rating[seasonNumber ==1]),
+            avg_season = mean(seasonNumber),
+            observations = n()) 
+
+by_year %>%
+  gather(metric, value, -year, -observations, -avg_season, -sd, - median_rating) %>%
+  ggplot(aes(year, value, color = metric)) +
+  geom_line()
+
+tv_ratings %>%
+  group_by(year = 5 * (year(date) %/%5),
+           seasonNumber = ifelse(seasonNumber >= 4, "4+", seasonNumber)) %>%
+  summarize(mean_rating = mean(av_rating),
+            observations = n()) %>%
+  ggplot(aes(year,mean_rating, color=factor(seasonNumber))) +
+  geom_line() +
+  labs(color = "Season",
+       y = "Average rating in each 5 year period")
+
+tv_ratings %>%
+  mutate(year = year(date)) %>%
+  ggplot(aes(av_rating)) +
+  geom_histogram() +
+  facet_wrap(~ year)
+```
+
+
+```{r}
+tv_ratings %>%
+  group_by (year=year(date)) %>%
+  summarize(mean_rating = mean(av_rating),
+            median_rating = median(av_rating),
+            sd = sd(av_rating),
+            observations = n()) %>%
+  ggplot(aes(year, median_rating)) +
+  geom_line()
+```
+
+```{r}
+tv_ratings %>%
+  ggplot(aes(date, av_rating)) +
+  geom_point() +
+  geom_smooth(method = "loess")
+```
+
+
+```{r}
+tv_ratings %>%
+  mutate(year = 2 *(year(date) %/% 2)) %>%
+  ggplot(aes(year, av_rating, group = year)) +
+  geom_boxplot()
+```
+
+```{r}
+first_three_seasons <- tv_ratings %>%
+  filter(seasonNumber <= 3) %>%
+  group_by(title) %>%
+  mutate(date_first_season = min(date)) %>%
+  ungroup() %>%
+  transmute(titleId,
+            title,
+            date_first_season,
+            seasonNumber = paste0("season", seasonNumber),
+            av_rating) %>%
+  distinct(title, seasonNumber, .keep_all = TRUE) %>%
+  spread(seasonNumber, av_rating) %>%
+  filter(!is.na(season1)) %>%
+  filter(date_first_season <= "2017-01-01") 
+
+library(broom)
+
+first_three_seasons %>%
+  mutate(year=year(date_first_season)) %>%
+  glm(!is.na(season2) ~ season1 * year, data = ., family = "binomial") %>%
+  summary()
+```
+
+```{r}
+first_three_seasons %>%
+  group_by(season1_bin = cut(season1, c(0,7,7.5,8,8.5,10)),
+           time_bin = ifelse(date_first_season < "2000-01-01", "Before 2000", "After 2000")) %>%
+  summarize(had_second_season = mean(!is.na(season2)),
+            observations = n()) %>%
+  ggplot(aes(season1_bin, had_second_season, color= time_bin, group = time_bin)) +
+  geom_line() +
+  geom_point() +
+  scale_y_continuous(labels = scales::percent_format())
+```
+
+```{r}
+first_three_seasons %>%
+  ggplot(aes(date_first_season))
+```
+

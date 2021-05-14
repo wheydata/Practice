@@ -1,0 +1,99 @@
+---
+title: "Practice13"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+prison_summary <- read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-01-22/prison_summary.csv")
+
+prison_population <- read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-01-22/prison_population.csv")
+
+theme_set(theme_light())
+```
+
+```{r}
+prison_summary %>%
+  count(urbanicity)
+```
+
+```{r}
+prison_summary %>%
+  filter(pop_category %in% c("White", "Black", "Latino", "Asian", "Native American")) %>%
+  ggplot(aes(year,rate_per_100000, color = urbanicity)) +
+  geom_line() +
+  facet_wrap(~ pop_category)
+``` 
+
+```{r}
+prison_population_2015 <- prison_population %>%
+  filter(year == 2015)
+
+non_missing_states <- prison_population_2015 %>%
+  group_by(state) %>%
+  filter(any(!is.na(prison_population))) %>%
+  ungroup() 
+
+non_missing_states %>%
+  group_by(population_category = cut(population, c(0,100,1000, 10000, Inf))) %>%
+  summarize(pct_missing = mean(is.na(prison_population)),
+            observations =n())
+
+prison_population %>%
+  filter(year == 2015) %>%
+  group_by(state) %>%
+  summarize(population = sum(population, na.rm=TRUE))
+
+```
+
+```{r}
+by_state <- non_missing_states %>%
+  filter(!is.na(prison_population)) %>%
+  group_by(state) %>%
+  summarize_at(vars(population, prison_population), sum) %>%
+  mutate(incarceration_rate = prison_population / population) %>%
+  arrange(desc(incarceration_rate))
+```
+
+```{r}
+library(maps)
+map <- map_data("state") %>%
+  tbl_df()
+```
+
+```{r}
+by_state %>%
+  mutate(region = str_to_lower(state.name[match(state, state.abb)])) %>%
+  right_join(map_data("state"), by = "region") %>%
+  ggplot(aes(long,lat, group = group, fill = incarceration_rate)) +
+  geom_polygon() +
+  ggthemes::theme_map() +
+  coord_map()
+```
+
+```{r}
+
+county_overall <- prison_population_2015 %>%
+  filter(pop_category =="Total") %>%
+  mutate(region = str_to_lower(state.name[match(state, state.abb)]),
+         subregion = str_remove(str_to_lower(county_name), "county| parish| city"),
+         incarceration_rate = prison_population / population) %>%
+  filter(!is.na(incarceration_rate))
+
+county_overall %>%
+  right_join(map_data("county"), by = c("region", "subregion")) %>%
+  ggplot(aes(long,lat, group = group, fill = incarceration_rate)) +
+  geom_polygon() +
+  ggthemes::theme_map() +
+  coord_map() +
+  scale_fill_gradient2(low = "blue", high = "red", midpoint = 0.01,
+                       labels = scales::percent_format())
+```
+

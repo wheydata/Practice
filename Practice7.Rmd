@@ -1,0 +1,75 @@
+---
+title: "Practice7"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(tidytext)
+library(widyr)
+```
+
+```{r}
+df <- read.csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2018/2018-12-04/medium_datasci.csv")
+```
+
+```{r}
+df %>%
+  count(author, sort=TRUE)
+```
+
+```{r}
+df %>%
+  summarize_at(vars(starts_with("tag_")),sum)
+```
+```{r}
+df_gathered <- df %>%
+  gather(tag, value, starts_with("tag")) %>%
+  mutate(tag = str_remove(tag,"tag_")) %>%
+  filter(value == 1)
+```
+
+```{r}
+df_gathered %>%
+  count(tag, sort = TRUE)
+```
+```{r}
+df_gathered %>%
+  group_by(tag) %>%
+  summarize(median_claps = median(claps)) %>%
+  arrange(desc(median_claps))
+```
+
+```{r}
+df_gathered %>%
+  group_by(tag) %>%
+  summarize(reading_time = mean(reading_time)) %>%
+  arrange(desc(reading_time))
+```
+
+```{r}
+df_gathered %>%
+  mutate(readingtime = pmin(10, reading_time)) %>%
+  ggplot(aes(reading_time)) +
+  geom_histogram(binwidth = .5) +
+  scale_x_continuous(breaks = seq(2,10,2),
+                    labels = c(seq(2,8,2), "10+")) +
+  labs(x = "Medium reading time")
+```
+
+
+```{r}
+df$title <- as.character(df$title)
+df$subtitle <- as.character(df$subtitle)
+```
+
+
+```{r}
+
+```
+
+
